@@ -1,46 +1,66 @@
 import os
-from typing import Any, Dict, List
+from typing import Any, List, Dict
 from dotenv import load_dotenv
-from langchain import hub
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.chains.history_aware_retriever import create_retrieval_chain
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from pinecone import Pinecone
-from langchain_community.vectorstores import Pinecone as PineconneLangChain
+from langchain.chains import RetrievalQA
+from pinecone import Pinecone, ServerlessSpec
+from langchain_pinecone import Pinecone as PineconeVectorStore
 
 load_dotenv()
 
-pc = Pinecone(api_key=os.environ("PINECONE_API_KEY"))
+# Inicializar Pinecone
+pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 
-def run_llm(query: str, chat_history: List[Dict[str, Any]] = []) -> Any:
-    embeddings = OpenAIEmbeddings()
-    docsearch = Pinecone.from_existing_index(
-        index_name=os.environ["INDEX_NAME"], embedding=embeddings
+# Crear el índice si no existe
+if os.getenv("INDEX_NAME") not in pc.list_indexes().names():
+    pc.create_index(
+        name=os.getenv("INDEX_NAME"),
+        dimension=1536,
+        metric='cosine',
+        spec=ServerlessSpec(
+            cloud='aws',
+            region=os.getenv("PINECONE_ENVIRONMENT")
+        )
     )
+
+def run_llm(query: str, chat_history: List[Dict[str, str]]) -> Any:
+    # Crear objeto de embeddings de OpenAI
+    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+
+    # Crear objeto de búsqueda basado en Pinecone
+    docsearch = PineconeVectorStore.from_existing_index(
+        index_name=os.getenv("INDEX_NAME"), embedding=embeddings
+    )
+
+    # Crear modelo LLM de OpenAI
     chat = ChatOpenAI(verbose=True, temperature=0)
-    retrieval_qa_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
-    stuff_documents_chain = create_stuff_documents_chain(
-            chat,
-            retrieval_qa_prompt
+
+    # Construir el historial del chat para incluirlo en el prompt
+    history_text = ""
+    for role, text in chat_history:
+        if role == "human":
+            history_text += f"Human: {text}\n"
+        elif role == "ai":
+            history_text += f"AI: {text}\n"
+    
+    # Crear el prompt completo con historial y la consulta actual
+    full_prompt = f"{history_text}\nHuman: {query}"
+
+    # Crear la cadena de preguntas y respuestas con la búsqueda
+    qa = RetrievalQA.from_chain_type(
+        llm=chat,
+        chain_type="stuff",
+        retriever=docsearch.as_retriever(),
+        return_source_documents=True
     )
 
-    rephrase_prompt = hub.pull("langchain-ai/chat-langchain-rephrase")
+    # Ejecutar la consulta con el historial y el prompt actual
+    result = qa.invoke({"query": full_prompt})
 
-    history_aware_retriever = create_retrieval_chain(
-            llm=chat, 
-            retriever=docsearch.as_retriever(),
-            prompt=rephrase_prompt
-    )
-
-    qa = create_retrieval_chain(
-            retriever=history_aware_retriever,
-            combine_docs_chain=stuff_documents_chain
-    )
-
-    result = qa.invoke(input={"input": query, "chat_history": chat_history})
-    new_result = {
-        "query": result["input"],
-        "result": result["answer"],
-        "source": result["context"]
+    # Formatear el resultado final
+    return {
+        "query": query,
+        "result": result["result"],  # Asumimos que el resultado está bajo esta clave
+        "source": result["source_documents"]  # Si los documentos fuente son necesarios
     }
-    return new_result
+
