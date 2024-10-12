@@ -5,6 +5,7 @@ No. 22779
 ## Dependencias 
 Para ejecutar este laboratorio es necesario tener instalado:
 - Docker
+---
 Además es necesario tener un archivo **.env** con los nombres y claves siguientes:
 - PINECONE_API_KEY=""
 - INDEX_NAME=""
