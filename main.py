@@ -6,8 +6,10 @@ from streamlit_chat import message
 
 st.header("ChatGPT40k - Warhammer 40,000 ChatBot")
 
+st.set_page_config(page_title='ChatGPT40k', page_icon='./images/40k.png')
+
 # Inputs para ingresar URL y path de datos
-data_path = st.text_input("Ingresa la ruta de los documentos locales")
+data_path = st.file_uploader("Selecciona un archivo local", type=["txt", "pdf", "docx"])
 url = st.text_input("Ingresa la URL para scrapear")
 
 # Botones para cargar documentos de distintas fuentes

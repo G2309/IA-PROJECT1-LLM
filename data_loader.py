@@ -1,4 +1,6 @@
 import os
+import pdfplumber
+import docx
 from dotenv import load_dotenv
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
@@ -6,10 +8,8 @@ from langchain_pinecone import PineconeVectorStore
 from langchain.docstore.document import Document
 from pinecone import Pinecone, ServerlessSpec
 
-# Cargar variables de entorno
 load_dotenv()
 
-# Crear instancia de Pinecone
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 
 # Crear el índice si no existe
@@ -27,17 +27,39 @@ if os.getenv("INDEX_NAME") not in pc.list_indexes().names():
 # Inicializar embeddings
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
-def ingest_docs() -> None:
-    # Cargar documentos locales (puedes ajustar esto según tu necesidad)
-    docs = [...]  # Aquí deberías agregar la lógica para cargar tus documentos locales.
+def load_txt(file) -> str:
+    return file.read().decode("utf-8")
+
+def load_pdf(file) -> str:
+    content = ""
+    with pdfplumber.open(file) as pdf:
+        for page in pdf.pages:
+            content += page.extract_text()
+    return content
+
+def load_docx(file) -> str:
+    doc = docx.Document(file)
+    return "\n".join([para.text for para in doc.paragraphs])
+
+def ingest_docs(file) -> None:
+    # Determinar el tipo de archivo y cargar su contenido
+    if file.name.endswith(".txt"):
+        content = load_txt(file)
+    elif file.name.endswith(".pdf"):
+        content = load_pdf(file)
+    elif file.name.endswith(".docx"):
+        content = load_docx(file)
+    else:
+        raise ValueError("Formato de archivo no soportado. Usa .txt, .pdf o .docx")
+
+    doc = Document(page_content=content, metadata={"source": file.name})
 
     # Dividir los documentos en chunks para los embeddings
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=200)
-    docs = text_splitter.split_documents(docs)
+    docs = text_splitter.split_documents([doc])
 
     print(f"Añadiendo {len(docs)} documentos a Pinecone.")
 
-    # Subir los documentos al índice de Pinecone
     PineconeVectorStore.from_documents(
         docs, embeddings, index_name=os.getenv("INDEX_NAME")
     )

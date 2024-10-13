@@ -23,3 +23,5 @@ pinecone
 beautifulsoup4
 pinecone-client
 firecrawl-py
+pdfplumber 
+python-docx
