@@ -43,5 +43,5 @@ Si se le carga un `.txt` con la informacion del personaje, ahora será capaz de 
 
 Por último, adjunto un video del funcionamiento del proyecto.
 
-https://drive.google.com/file/d/1gl2BgecpuzUPPAwWCtTxSYt8vMMztXN6/view?usp=sharing
+[Video](https://drive.google.com/file/d/1gl2BgecpuzUPPAwWCtTxSYt8vMMztXN6/view?usp=sharing)
 
