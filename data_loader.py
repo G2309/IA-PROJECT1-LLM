@@ -1,42 +1,72 @@
 import json
 import os
-from bs4 import BeautifulSoup 
-import pinecone
-from langchain.embeddings.openai import OpenAIEmbeddings
 from dotenv import load_dotenv
+from bs4 import BeautifulSoup
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.docstore.document import Document
+from langchain.vectorstores import Pinecone
+import pinecone
 
 load_dotenv()
 
+# Inicializar Pinecone y los embeddings
 pinecone.init(api_key=os.getenv("PINECONE_API_KEY"))
 index_name = os.getenv("INDEX_NAME")
 index = pinecone.Index(index_name)
 
 embedding_model = OpenAIEmbeddings()
 
-def process_html(file_path):
-    with open(file_path, 'r', encoding='utf-8') as file:
-        soup = BeautifulSoup(file, 'html.parser')
-        text = soup.get_text()
-    return text
+# Función para cargar y extraer texto de archivos HTML
+def load_document_html(directory):
+    documents = []
+    for root, dirs, files in os.walk(directory):
+        for filename in files:
+            if filename.endswith(".html"):
+                filepath = os.path.join(root, filename)
+                with open(filepath, 'r', encoding='utf-8') as file:
+                    soup = BeautifulSoup(file, 'html.parser')
+                    text = soup.get_text(separator="\n")
+                    document = Document(page_content=text, metadata={"source": filepath})
+                    documents.append(document)
+    return documents
 
-def process_json(file_path):
-    with open(file_path, 'r', encoding='utf-8') as file:
-        data = json.load(file)
-        return json.dumps(data)  # Convertirlo a string si es necesario
+# Función para cargar y extraer datos de archivos JSON
+def load_document_json(directory):
+    documents = []
+    for root, dirs, files in os.walk(directory):
+        for filename in files:
+            if filename.endswith(".json"):
+                filepath = os.path.join(root, filename)
+                with open(filepath, 'r', encoding='utf-8') as file:
+                    data = json.load(file)
+                    text = json.dumps(data)
+                    document = Document(page_content=text, metadata={"source": filepath})
+                    documents.append(document)
+    return documents
 
-def insert_data(file_path, file_type):
-    if file_type == 'html':
-        text = process_html(file_path)
-    elif file_type == 'json':
-        text = process_json(file_path)
-    else:
-        raise ValueError("Formato de archivo no soportado. Usa 'html' o 'json'.")
+# Función para dividir los documentos en chunks y subirlos a Pinecone
+def ingest_docs(directory_html, directory_json):
+    raw_documents_html = load_document_html(directory_html)
+    raw_documents_json = load_document_json(directory_json)
 
-    embedding = embedding_model.embed_query(text)
-    
-    index.upsert(vectors=[(file_path, embedding)])
-    print(f"Datos insertados desde {file_path} en Pinecone.")
+    raw_documents = raw_documents_html + raw_documents_json
 
-insert_data("./data/html/*.html", "html")
-insert_data("./data/json/*.json", "json")
+    print(f"Loaded {len(raw_documents)} documents")
+
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=50)
+    documents = text_splitter.split_documents(raw_documents)
+
+    print(f"Split {len(documents)} documents into chunks")
+
+    Pinecone.from_documents(
+        documents, embedding=embedding_model, index_name=index_name
+    )
+
+    print(f"Inserted {len(documents)} chunks into Pinecone")
+
+if __name__ == "__main__":
+    directory_html = "./data/html"
+    directory_json = "./data/json"
+    ingest_docs(directory_html, directory_json)
 

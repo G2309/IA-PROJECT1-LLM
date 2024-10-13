@@ -22,3 +22,4 @@ python-dotenv
 pinecone
 beautifulsoup4
 pinecone-client
+firecrawl-py
