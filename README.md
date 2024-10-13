@@ -34,8 +34,13 @@ docker run --name Proyecto01-gustavo llm-agent:latest
 ---
 ## 📊 Evidencias del proyecto trabajando 
 El agente llm al principio si se le hace una pregunta de un dato que no está en la base de datos de PineCone no contestará, como en el ejemplo antes de cargar informacion sobre `Nemeroth`.
-![Evidencia del assistant](./images/antes.jpg)
+
+![Evidencia del assistant](./images/antes.png)
+
 Si se le carga un `.txt` con la informacion del personaje, ahora será capaz de responderlo al recargar la página.
-![Evidencia del assistant](./images/despues.jpg)
+
+![Evidencia del assistant](./images/despues.png)
+
 Por último, adjunto un video del funcionamiento del proyecto.
-![Video del funcionamiento](./images/Funcionamiento.mp4)
+
+![Video del funcionamiento](https://drive.google.com/file/d/1gl2BgecpuzUPPAwWCtTxSYt8vMMztXN6/view?usp=sharing)
