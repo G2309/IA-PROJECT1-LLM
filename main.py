@@ -4,9 +4,9 @@ from data_loader import ingest_docs
 import streamlit as st
 from streamlit_chat import message
 
-st.header("ChatGPT40k - Warhammer 40,000 ChatBot")
-
 st.set_page_config(page_title='ChatGPT40k', page_icon='./images/40k.png')
+
+st.header("ChatGPT40k - Warhammer 40,000 ChatBot")
 
 # Inputs para ingresar URL y path de datos
 data_path = st.file_uploader("Selecciona un archivo local", type=["txt", "pdf", "docx"])
