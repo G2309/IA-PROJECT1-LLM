@@ -4,18 +4,28 @@ from data_loader import ingest_docs
 import streamlit as st
 from streamlit_chat import message
 
-st.header("LangChain - Documentation Helper Bot")
+st.header("ChatGPT40k - Warhammer 40,000 ChatBot")
+
+# Inputs para ingresar URL y path de datos
+data_path = st.text_input("Ingresa la ruta de los documentos locales")
+url = st.text_input("Ingresa la URL para scrapear")
 
 # Botones para cargar documentos de distintas fuentes
 if st.button('Cargar documentos locales (data_loader)'):
-    with st.spinner("Cargando documentos locales..."):
-        ingest_docs()  # Llamar al data_loader
-    st.success("Documentos locales cargados en Pinecone.")
+    if data_path:
+        with st.spinner("Cargando documentos locales..."):
+            ingest_docs(data_path)  # Llamar al data_loader con la ruta proporcionada
+        st.success("Documentos locales cargados en Pinecone.")
+    else:
+        st.error("Por favor, ingresa una ruta de documentos.")
 
 if st.button('Scrapear y cargar contenido desde una URL (Firecrawl)'):
-    with st.spinner("Scrapeando contenido desde la URL..."):
-        ingest_firecrawl_data()  # Llamar a Firecrawl
-    st.success("Contenido de la URL cargado en Pinecone.")
+    if url:
+        with st.spinner("Scrapeando contenido desde la URL..."):
+            ingest_firecrawl_data(url)  # Llamar a Firecrawl con el URL proporcionado
+        st.success("Contenido de la URL cargado en Pinecone.")
+    else:
+        st.error("Por favor, ingresa una URL antes de scrapear.")
 
 # Input para el prompt
 prompt = st.text_input("Prompt", placeholder="Ingresa tu pregunta aquí")
@@ -39,6 +49,7 @@ def create_sources_string(source_urls: set[str]) -> str:
         sources_string += f"{i+1}. {source}\n"
     return sources_string
 
+# Si se introduce un prompt
 if prompt:
     with st.spinner("Generando respuesta..."):
         generated_response = run_llm(
@@ -53,8 +64,9 @@ if prompt:
         st.session_state["chat_history"].append(("human", prompt))
         st.session_state["chat_history"].append(("ai", generated_response["result"]))
 
+# Mostrar el historial de mensajes en el chat
 if st.session_state["chat_answers_history"]:
     for i, (generated_response, user_query) in enumerate(zip(st.session_state["chat_answers_history"], st.session_state["user_prompt_history"])):
-        message(user_query, is_user=True, key=f"user_{i}")  # Asignar un key único para cada mensaje del usuario
-        message(generated_response, key=f"ai_{i}")  # Asignar un key único para cada mensaje generado
+        message(user_query, is_user=True, key=f"user_{i}") 
+        message(generated_response, key=f"ai_{i}") 
 
